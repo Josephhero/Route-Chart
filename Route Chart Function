@@ -1,168 +1,285 @@
 library(tidyverse)
 library(nflreadr)
+library(ggpath)
 
-
-fake_data <- tibble(player_name = "Marquez Valdes-Scantling", 
-               team_abbr = "KC", 
-               route_num = 1:9, 
-               routes = c(1, 2, 3, 4, 5, 6, 7, 8, 9))
-
-
-bg_color <- "white"
-bg_line_color <- "gray92"
-route_label_color <- "gray30"
-route_pct_color <- "black"
-
-
-linewidth <- 1
-
-route_tree_df <- 
-  tibble(
-    route_num = 1:9, 
-    route_name = c("flat", "slant", "out", "dig", "comeback", "curl", "corner", 
-                   "post", "nine"), 
-    x_start = 20, 
-    #route_num =  c(    1,     2,     3,     4,    5,  6,  7,  8,    9), 
-    x_end =       c( 10.5,  29.5,  10.5,  29.5,   13,   27, 13,   27,   20), 
-    y_start =     c(    8,    10,    30,    30,   30,   30, 30,   30,   30), 
-    y_end =       c(   12,    14,    30,    30,   23,   23, 37,   37, 39.5), 
-    label_pos_x = c(    5, 36.25,     5,  34.5,    7, 31.5,  8, 31.5, 19.1), 
-    label_pos_y = c(   12,    14,    30,    30,   22,   22, 38,   38, 41.5), 
-    route_pct = c("90.0%", "80.0%", "70.0%", "60.0%", "50.0%", "40.0%",
-                  "30.0%", "20.0%", "10.0%")
-  )  |> 
-  mutate(route_text = toupper(case_when(
-    route_num %% 2 == 0 ~ paste0(route_name, "  |  "), 
-    TRUE ~ paste0("  |  ", route_name)
-    )), .after = route_name) |> 
-  left_join(fake_data, by = "route_num") |> 
-  left_join(select(nflreadr::load_players() |> filter(display_name == "Marquez Valdes-Scantling"), 
-                   display_name, gsis_id), 
-            by = c("player_name" = "display_name"))
-
-hulk_pal <- c(
-  "#762a83", "#af8dc3", "#e7d4e8", "#f7f7f7",
-  "#d9f0d3", "#7fbf7b", "#1b7837"
-)
-
-num_palette <- c("#9400D3", "#009900", "darkorange")
-
-ggplot() +
-  geom_hline(yintercept = c(10, 20, 30, 40),
-             color = bg_line_color) +
-  geom_segment(aes(x = 5,
-                   xend = 6,
-                   y = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48),
-                   yend = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48)),
-               color = bg_line_color) +
-  geom_segment(aes(x = 34,
-                   xend = 35,
-                   y = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48),
-                   yend = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48)),
-               color = bg_line_color) +
-  scale_x_continuous(limits = c(0, 40)) + 
-  scale_y_continuous(limits = c(3.9, 50)) +
-  # Route Lines
-  geom_segment(data = route_tree_df, 
-               aes(x = x_start, xend = x_end, 
-                   y = y_start, yend = y_end), 
-               arrow = arrow(length = unit(0.2,"cm")), 
-               linewidth = linewidth, 
-               color = case_when(
-                 route_tree_df$route_num %in% c(1, 3, 8) ~ num_palette[1], 
-                 route_tree_df$route_num %in% c(2, 5, 9) ~num_palette[2], 
-                 route_tree_df$route_num %in% c(4, 6, 7) ~num_palette[3])) + 
-  # Base Line
-  geom_segment(aes(x = 20, xend = 20, 
-                   y = 3.95, yend = 30), 
-               linewidth = linewidth + 0.5, 
-               color = "black") + 
-  geom_point(aes(x = 20, y = 30), 
-             size = 3, 
-             shape = 21, 
-             fill = "gray80", 
-             color = "black") +
-  geom_segment(aes(x = 20, xend = 20, 
-                   y = 4, yend = 30), 
-               linewidth = linewidth, 
-               color = "gray80") + 
-  # White color labels to hide the backgrounds
-  geom_label(data = route_tree_df, 
-             aes(x = label_pos_x, 
-                 y = label_pos_y, 
-                 label = route_text), 
-             color = bg_color, 
-             hjust = if_else(route_tree_df$route_num %% 2 == 0, "right", "left"), 
-             size = 3, 
-             label.padding = unit(0.1, "lines")) +
-  # Route Names 
-  geom_text(data = route_tree_df, 
-            aes(x = label_pos_x, 
-                y = label_pos_y, 
-                label = route_text), 
-            color = route_label_color, 
-            hjust = if_else(route_tree_df$route_num %% 2 == 0, "right", "left"), 
-            size = 3) +
-  # White labels to hide the backgrounds
-  geom_label(data = route_tree_df, 
-             aes(x = label_pos_x, 
-                 y = label_pos_y, 
-                 label = routes), 
-             color = bg_color, 
-             hjust = if_else(route_tree_df$route_num %% 2 == 0, "left", "right"), 
-             size = 3, 
-             label.padding = unit(0.2, "lines")) +
-  # Numbers by Routes
-  geom_text(data = route_tree_df, 
-            aes(x = label_pos_x, 
-                y = label_pos_y, 
-                label = routes), 
-            color = case_when(
-              route_tree_df$route_num %in% c(1, 3, 8) ~ num_palette[1], 
-              route_tree_df$route_num %in% c(2, 5, 9) ~num_palette[2], 
-              route_tree_df$route_num %in% c(4, 6, 7) ~num_palette[3]), 
-            hjust = if_else(route_tree_df$route_num %% 2 == 0, "left", "right"), 
-            size = 4, 
-            fontface = "bold") +
-  nflplotR::geom_nfl_logos(data = slice_head(route_tree_df, n = 1), 
-                           aes(x = 35, 
-                               y = 45, 
-                               team_abbr = team_abbr), 
-                           height = 0.15) + 
-  geom_point(data = slice_head(route_tree_df, n = 1), 
-             aes(x = 5, y = 45, color = team_abbr),
-             fill = "white", 
-             shape = 21, 
-             size = 21.5) +
-  geom_point(data = slice_head(route_tree_df, n = 1), 
-             aes(x = 5, y = 45, color = team_abbr),
-             alpha = 0.15,
-             size = 21) +
-  nflplotR::scale_fill_nfl(type = "primary") + 
-  nflplotR::scale_color_nfl(type = "primary") + 
-  nflplotR::geom_nfl_headshots(data = slice_head(route_tree_df, n = 1), 
-                               aes(x = 5, 
-                                   y = 46, 
-                                   player_gsis = gsis_id), 
-                               height = 0.1) + 
-  geom_text(data = slice_head(route_tree_df, n = 1), 
-            aes(x = 20, y = 50, label = player_name), 
-            size = 4.5, 
-            fontface = "bold") + 
-  annotate("text", x = 20, y = 47,
-           label = "~underline('Routes Run')", 
-           parse = TRUE, 
-           size = 4
-  ) +
-  geom_rect(aes(xmin = -Inf, xmax = Inf, 
-                ymin = -Inf, ymax = Inf), 
-            color = route_label_color, 
-            fill=alpha("grey",0)) +
-  theme_void() + 
-  theme(
-    panel.background = element_rect(fill = bg_color), 
+# Function to create a route tree with data
+route_tree <- function(df, 
+                       team = "KC", 
+                       name = "T.Kelce", 
+                       col1, 
+                       col2 = "col2", 
+                       color_column = 1,  # Default value for color
+                       label = NULL) {
+  # name <- "T.Kelce"
+  # team <- "KC"
+  # col1 <- "targets"
+  # col2 <- "yards"
+  # color_column <- 2
+  # label <- NULL
+  
+  df <- df |> 
+    filter(receiver == "T.Kelce")
+  
+  bg_color <- "white"
+  bg_line_color <- "gray92"
+  route_label_color <- "gray30"
+  route_pct_color <- "black"
+  zero_color <- "gray50"
+  
+  linewidth <- 1
+  
+  route_tree_df <- 
+    tibble(
+      route_num = 1:9, 
+      route = toupper(c("flat", "slant", "hitch", "cross", "out", "in", "corner", 
+                "post", "go")), 
+      x_start = 20, 
+      x_end =       c( 10.5,  29.5,    13,    27, 10.5, 29.5, 13,   27,   20), 
+      y_start =     c(    8,    10,    30,    30,   30,   30, 30,   30,   30), 
+      y_end =       c(   12,    14,    23,    23,   30,   30, 37,   37, 39.5), 
+      label_pos_x = c(    5, 36.25,     7,  31.5,    5, 34.5,  8, 31.5, 19.1), 
+      label_pos_y = c(   12,    14,    22,    22,   30,   30, 38,   38, 41.5), 
+    )  |> 
+    mutate(route_text = toupper(case_when(
+      route_num %% 2 == 0 ~ paste0(route, "  |  "), 
+      TRUE ~ paste0("  |  ", route)
+    )), .after = route) |> 
+    left_join(df, by = "route") |> 
+    mutate(team_abbr = team) |> 
+    mutate(
+      col1 := !!sym(col1),
+      col2 := if (col2 == "col2") as.numeric(NA) else !!sym(col2),
+      color = color_column,
+      color = case_when(
+        color == 1 ~ col1,
+        color == 2 & !is.na(col2) ~ col2,
+        TRUE ~ col1)
+    ) |>
+    mutate(col2_text = paste0(" (", col2, ")")) |> 
+    mutate(stat_thirds = (max(color, na.rm = TRUE) - (min(color, na.rm = TRUE))) / 3) |>
+    mutate(color = case_when(
+      color <= stat_thirds ~ 1,
+      color <= stat_thirds * 2 ~ 2,
+      TRUE ~ 3)
+    ) |>
+    left_join(select(nflreadr::load_players() |> filter(gsis_id == df$receiver_id[1]), 
+                     name = display_name, gsis_id), 
+              by = c("receiver_id" = "gsis_id"))
+  
+  label_var = ifelse(!is.null(label), str_to_title(label),
+                     ifelse(col2 == "col2", str_to_title(as.character(col1)),
+                            ifelse(is.null(label) & col2 != "col2", 
+                                   str_to_title(paste0(as.character(col1), 
+                                                       " (", 
+                                                       as.character(col2), 
+                                                       ")")
+                                   ),
+                                   ifelse(is.null(label) & col2 == "col2", str_to_title(as.character(col1)), "No label")))
   )
+  
+  
+  #num_palette <- c("#9400D3", "darkorange", "#009900")
+  num_palette <- c("#c71585", "darkorange", "#009900")
+  
+  p <- ggplot() +
+    geom_hline(yintercept = c(10, 20, 30, 40),
+               color = bg_line_color) +
+    geom_segment(aes(x = 5,
+                     xend = 6,
+                     y = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48),
+                     yend = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48)),
+                 color = bg_line_color) +
+    geom_segment(aes(x = 34,
+                     xend = 35,
+                     y = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48),
+                     yend = c(4, 6, 8, 12, 14, 16, 18, 22, 24, 26, 28, 32, 34, 36, 38, 42, 44, 46, 48)),
+                 color = bg_line_color) +
+    scale_x_continuous(limits = c(0, 40)) + 
+    scale_y_continuous(limits = c(3.9, 50)) +
+    # Route Lines
+    geom_segment(data = route_tree_df, 
+                 aes(x = x_start, xend = x_end, 
+                     y = y_start, yend = y_end), 
+                 arrow = arrow(length = unit(0.2,"cm")), 
+                 linewidth = linewidth, 
+                 color = if_else(route_tree_df$col1 == 0, 
+                                 zero_color, 
+                                 num_palette[route_tree_df$color])
+    ) + 
+    # Base Line
+    geom_segment(aes(x = 20, xend = 20, 
+                     y = 3.95, yend = 30), 
+                 linewidth = linewidth + 0.5, 
+                 color = "black") + 
+    geom_point(aes(x = 20, y = 30), 
+               size = 3, 
+               shape = 21, 
+               fill = "gray80", 
+               color = "black") +
+    geom_segment(aes(x = 20, xend = 20, 
+                     y = 4, yend = 30), 
+                 linewidth = linewidth, 
+                 color = "gray80") + 
+    # White color labels to hide the backgrounds
+    geom_label(data = route_tree_df, 
+               aes(x = label_pos_x, 
+                   y = label_pos_y, 
+                   label = route_text), 
+               color = bg_color, 
+               hjust = if_else(route_tree_df$route_num %% 2 == 0, "right", "left"), 
+               size = 3, 
+               label.padding = unit(0.1, "lines")) +
+    # Route Names 
+    geom_text(data = route_tree_df, 
+              aes(x = label_pos_x, 
+                  y = label_pos_y, 
+                  label = route_text), 
+              color = route_label_color, 
+              hjust = if_else(route_tree_df$route_num %% 2 == 0, "right", "left"), 
+              size = 3)
+  if(col2 == "col2"){
+    p <- p + 
+      # White labels to hide the backgrounds
+      geom_label(data = route_tree_df, 
+                 aes(x = label_pos_x, 
+                     y = label_pos_y, 
+                     label = col1), 
+                 color = bg_color, 
+                 hjust = if_else(route_tree_df$route_num %% 2 == 0, "left", "right"), 
+                 size = 3, 
+                 label.padding = unit(0.2, "lines")) + 
+      # Numbers by Routes
+      geom_text(data = route_tree_df, 
+                aes(x = label_pos_x, 
+                    y = label_pos_y, 
+                    label = col1), 
+                color = if_else(route_tree_df$col1 == 0, 
+                                zero_color, 
+                                num_palette[route_tree_df$color]), 
+                hjust = if_else(route_tree_df$route_num %% 2 == 0, "left", "right"), 
+                size = 4, 
+                fontface = "bold")
+  } else {
+    p <- p + 
+      # White labels to hide the backgrounds
+      geom_label(data = route_tree_df, 
+                 aes(x = if_else(route_num %% 2 == 0, 
+                                 label_pos_x + str_length(col2) + 0.25, 
+                                 label_pos_x - str_length(col2) - 0.25), 
+                     y = label_pos_y + 0.8, 
+                     label = col1), 
+                 color = bg_color, 
+                 size = 3, 
+                 label.padding = unit(0.2, "lines")) +
+      # White labels to hide the backgrounds
+      geom_label(data = route_tree_df, 
+                 aes(x = if_else(route_num %% 2 == 0, 
+                                 label_pos_x + str_length(col2), 
+                                 label_pos_x - str_length(col2) - 0.5), 
+                     y = label_pos_y - 0.8, 
+                     label = col2_text), 
+                 color = bg_color, 
+                 size = 3, 
+                 label.padding = unit(0.2, "lines")) +
+      # Numbers by Routes
+      geom_text(data = route_tree_df, 
+                aes(x = if_else(route_num %% 2 == 0, 
+                                label_pos_x + str_length(col2) + 0.25, 
+                                label_pos_x - str_length(col2) - 0.25), 
+                    y = label_pos_y + 0.8, 
+                    label = col1), 
+                color = case_when(route_tree_df$col1 == 0 ~ zero_color,
+                                  color_column == 1 ~ num_palette[route_tree_df$color],
+                                  TRUE ~ "black"),
+                size = 4, 
+                fontface = if_else(route_tree_df$col1 == 0, 
+                                   "italic", 
+                                   "bold")) +
+      geom_text(data = route_tree_df, 
+                aes(x = if_else(route_num %% 2 == 0, 
+                                label_pos_x + str_length(col2), 
+                                label_pos_x - str_length(col2) - 0.5),  
+                    y = label_pos_y - 0.8, 
+                    label = col2_text), 
+                color = case_when(route_tree_df$col1 == 0 ~ zero_color,
+                                  color_column == 2 ~ num_palette[route_tree_df$color],
+                                  TRUE ~ "black"),
+                size = 4, 
+                fontface = if_else(route_tree_df$col1 == 0, 
+                                   "italic", 
+                                   "bold"))
+  }
+  p <- p + 
+    nflplotR::geom_nfl_logos(data = slice_head(route_tree_df, n = 1), 
+                             aes(x = 35, 
+                                 y = 45, 
+                                 team_abbr = team_abbr), 
+                             height = 0.15) + 
+    geom_point(data = slice_head(route_tree_df, n = 1), 
+               aes(x = 5, y = 45, color = team_abbr),
+               fill = "white", 
+               shape = 21, 
+               size = 21.5) +
+    geom_point(data = slice_head(route_tree_df, n = 1), 
+               aes(x = 5, y = 45, color = team_abbr),
+               alpha = 0.15,
+               size = 21) +
+    nflplotR::scale_fill_nfl(type = "primary") + 
+    nflplotR::scale_color_nfl(type = "primary") + 
+    nflplotR::geom_nfl_headshots(data = slice_head(route_tree_df, n = 1), 
+                                 aes(x = 5, 
+                                     y = 46, 
+                                     player_gsis = receiver_id), 
+                                 height = 0.1) + 
+    geom_text(data = slice_head(route_tree_df, n = 1), 
+              aes(x = 20, y = 50, label = name), 
+              size = 4.5, 
+              fontface = "bold") + 
+    annotate("text", x = 20, y = 47,
+             label = paste0("~underline('", label_var, "')"), 
+             parse = TRUE, 
+             size = 4
+    ) +
+    annotate("text", x = 39, y = 4,
+             label = "Data: Fantasy Points Data", 
+             #parse = TRUE, 
+             size = 2.5, 
+             hjust = "right"
+    ) +
+    geom_rect(aes(xmin = -Inf, xmax = Inf, 
+                  ymin = -Inf, ymax = Inf), 
+              color = route_label_color, 
+              fill=alpha("grey",0)) + 
+    theme_void() + 
+    labs(tag = "https://github.com/Josephhero/Jefe-Logo/raw/main/Jefe%20Logo%20Skyline.png") + 
+    theme(
+      panel.background = element_rect(fill = bg_color), 
+      plot.tag.position = c(0.2, 0.06), 
+      plot.tag = ggpath::element_path(size = 3.5)
+    )
+  
+  ggsave(plot = p, 
+         filename = paste0("images/", name, " ", label_var, " Route Tree.png"),  
+         height = 5, 
+         width = 4)
+  
+}
 
-ggsave(filename = "images/Route Tree New.png", 
-       height = 5, 
-       width = 4)
+
+dat <- load_participation(include_pbp = TRUE)
+
+route_data <- dat |> 
+  filter(!is.na(route), week < 10) |> 
+  select(receiver_id, receiver, route, complete_pass) |> 
+  summarize(targets = n(), 
+            receptions = sum(complete_pass, na.rm = TRUE), 
+            .by = c(receiver_id, receiver, route))
+
+route_tree(df = route_data,
+           team = "KC",
+           name = "T.Kelce",
+           col1 = "targets",
+           col2 = "receptions",
+           color_column = 2,
+           #label = ""
+)
