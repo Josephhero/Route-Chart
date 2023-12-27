@@ -2,6 +2,14 @@ library(tidyverse)
 library(nflreadr)
 library(ggpath)
 
+# Initial Data
+route_data <- load_participation(include_pbp = TRUE) |> 
+  filter(pass == 1, !is.na(epa), !is.na(posteam), !is.na(route)) |> 
+  select(receiver_id, receiver, route, complete_pass) |> 
+  summarize(targets = n(), 
+            receptions = sum(complete_pass, na.rm = TRUE), 
+            .by = c(receiver_id, receiver, route))
+
 # Function to create a route tree with data
 route_tree <- function(df, 
                        team = "KC", 
@@ -10,15 +18,16 @@ route_tree <- function(df,
                        col2 = "col2", 
                        color_column = 1,  # Default value for color
                        label = NULL) {
-  # name <- "T.Kelce"
-  # team <- "KC"
+  # name <- "J.Jefferson"
+  # team <- "MIN"
   # col1 <- "targets"
-  # col2 <- "yards"
+  # col2 <- "receptions"
   # color_column <- 2
   # label <- NULL
   
+  df <- route_data
   df <- df |> 
-    filter(receiver == "T.Kelce")
+    filter(receiver == name)
   
   bg_color <- "white"
   bg_line_color <- "gray92"
@@ -32,7 +41,7 @@ route_tree <- function(df,
     tibble(
       route_num = 1:9, 
       route = toupper(c("flat", "slant", "hitch", "cross", "out", "in", "corner", 
-                "post", "go")), 
+                        "post", "go")), 
       x_start = 20, 
       x_end =       c( 10.5,  29.5,    13,    27, 10.5, 29.5, 13,   27,   20), 
       y_start =     c(    8,    10,    30,    30,   30,   30, 30,   30,   30), 
@@ -46,6 +55,8 @@ route_tree <- function(df,
     )), .after = route) |> 
     left_join(df, by = "route") |> 
     mutate(team_abbr = team) |> 
+    fill(receiver_id, .direction = "downup") |> 
+    fill(receiver, .direction = "downup") |> 
     mutate(
       col1 := !!sym(col1),
       col2 := if (col2 == "col2") as.numeric(NA) else !!sym(col2),
@@ -55,6 +66,8 @@ route_tree <- function(df,
         color == 2 & !is.na(col2) ~ col2,
         TRUE ~ col1)
     ) |>
+    mutate(col1 = replace_na(col1, 0)) |>
+    mutate(col2 = replace_na(col1, 0)) |>
     mutate(col2_text = paste0(" (", col2, ")")) |> 
     mutate(stat_thirds = (max(color, na.rm = TRUE) - (min(color, na.rm = TRUE))) / 3) |>
     mutate(color = case_when(
@@ -265,19 +278,9 @@ route_tree <- function(df,
   
 }
 
-
-dat <- load_participation(include_pbp = TRUE)
-
-route_data <- dat |> 
-  filter(!is.na(route), week < 10) |> 
-  select(receiver_id, receiver, route, complete_pass) |> 
-  summarize(targets = n(), 
-            receptions = sum(complete_pass, na.rm = TRUE), 
-            .by = c(receiver_id, receiver, route))
-
 route_tree(df = route_data,
-           team = "KC",
-           name = "T.Kelce",
+           team = "MIN",
+           name = "J.Jefferson",
            col1 = "targets",
            col2 = "receptions",
            color_column = 2,
