@@ -67,7 +67,7 @@ route_tree <- function(df,
         TRUE ~ col1)
     ) |>
     mutate(col1 = replace_na(col1, 0)) |>
-    mutate(col2 = replace_na(col1, 0)) |>
+    mutate(col2 = replace_na(col2, 0)) |>
     mutate(col2_text = paste0(" (", col2, ")")) |> 
     mutate(stat_thirds = (max(color, na.rm = TRUE) - (min(color, na.rm = TRUE))) / 3) |>
     mutate(color = case_when(
