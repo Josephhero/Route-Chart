@@ -241,7 +241,7 @@ route_tree <- function(df,
              size = 4
     ) +
     annotate("text", x = 39, y = 4,
-             label = "Data: Fantasy Points Data", 
+             label = "Data: nflverse.com", 
              #parse = TRUE, 
              size = 2.5, 
              hjust = "right"
